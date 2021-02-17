@@ -9,7 +9,7 @@ spark-packages.org.  The group is `com.singlestore` and the artifact is
 
 * [Maven Central](https://search.maven.org/artifact/com.singlestore/singlestore-spark-connector_2.11)
 * [Maven Central (Spark 3)](https://search.maven.org/artifact/com.singlestore/singlestore-spark-connector_2.12)
-* [spark-packages.org](https://spark-packages.org/package/memsql/singlestore-spark-connector)
+* [spark-packages.org](https://spark-packages.org/package/memsql/memsql-spark-connector)
 
 You can add the connector to your Spark application using: spark-shell, pyspark, or spark-submit
 ```

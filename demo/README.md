@@ -12,7 +12,7 @@ docker network create zeppelin-ciab-network
 
 * Pull memsql-ciab docker image
 ```
-docker pull memsql/cluster-in-a-box
+docker pull memsql/cluster-in-a-box:centos-7.3.2-a364d4b31f-3.0.0-1.9.3
 ```
 
 * Run and start the SingleStore Cluster in a Box docker container
@@ -21,9 +21,10 @@ docker pull memsql/cluster-in-a-box
 docker run -i --init \
 --name singlestore-ciab-for-zeppelin \
 -e LICENSE_KEY=[INPUT_YOUR_LICENSE_KEY] \
+-e ROOT_PASSWORD="password" \
 -p 3306:3306 -p 8080:8080 \
 --net=zeppelin-ciab-network \
-memsql/cluster-in-a-box
+memsql/cluster-in-a-box:centos-7.3.2-a364d4b31f-3.0.0-1.9.3
 ```
 ```
 docker start singlestore-ciab-for-zeppelin
@@ -55,7 +56,7 @@ docker run -d --init \
 --name zeppelin \
 -p 8082:8082 \
 --net=zeppelin-ciab-network \
--v $PWD/notebook:/zeppelin/notebook/memsql \
+-v $PWD/notebook:/opt/zeppelin/notebook/Singlestore \
 zeppelin
 ```
 
