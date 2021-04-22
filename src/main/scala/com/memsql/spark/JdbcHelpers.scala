@@ -137,6 +137,40 @@ object JdbcHelpers extends LazyLogging {
     }
   }
 
+  def externalHostPorts(conf: MemsqlOptions, database: String): List[MemsqlPartitionInfo] = {
+    val conn = JdbcUtils.createConnectionFactory(getDDLJDBCOptions(conf))()
+    try {
+      val statement = conn.prepareStatement(s"""
+        SELECT EXTERNAL_HOST,         
+        EXTERNAL_PORT
+        FROM INFORMATION_SCHEMA.MV_NODES 
+        WHERE TYPE = "LEAF";
+      """)
+      try {
+        val rs = statement.executeQuery()
+        try {
+          var out = List.empty[MemsqlPartitionInfo]
+          var idx = 0
+          while (rs.next) {
+            val externalHost = rs.getString(1)
+            val externalPort = rs.getInt(2)
+            if (externalHost != null) {
+              out = MemsqlPartitionInfo(idx, s"${database}_${idx}", s"$externalHost:$externalPort") :: out
+              idx += 1
+            }
+          }
+          out.reverse
+        } finally {
+          rs.close()
+        }
+      } finally {
+        statement.close()
+      }
+    } finally {
+      conn.close()
+    }
+  }
+
   // partitionHostPorts returns a list of (ordinal, name, host:port) for all master
   // partitions in the specified database
   def partitionHostPorts(conf: MemsqlOptions, database: String): List[MemsqlPartitionInfo] = {

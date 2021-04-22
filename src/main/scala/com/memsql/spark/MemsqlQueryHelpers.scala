@@ -37,8 +37,12 @@ object MemsqlQueryHelpers extends LazyLogging {
     // currently we require the database name to be provided in order to do partition pushdown
     // this is because we need to replace the database name in the generated query from MemSQL explain
     val partitions = if (options.enableParallelRead && options.database.isDefined) {
-      val explainJSON        = JdbcHelpers.explainJSONQuery(options, query, variables).parseJson
-      val partitionHostPorts = JdbcHelpers.partitionHostPorts(options, options.database.head)
+      val explainJSON = JdbcHelpers.explainJSONQuery(options, query, variables).parseJson
+      val partitionHostPorts = if (options.useExternalHost) {
+        JdbcHelpers.externalHostPorts(options, options.database.head)
+      } else {
+        JdbcHelpers.partitionHostPorts(options, options.database.head)
+      }
       try {
         partitionsFromExplainJSON(options, options.database.head, partitionHostPorts, explainJSON)
       } catch {
