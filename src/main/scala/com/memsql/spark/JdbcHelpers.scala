@@ -1,6 +1,6 @@
 package com.memsql.spark
 
-import java.sql.{Connection, PreparedStatement, Statement}
+import java.sql.{Connection, PreparedStatement, SQLException, Statement}
 
 import com.memsql.spark.MemsqlOptions.{TableKey, TableKeyType}
 import com.memsql.spark.SQLGen.{StringVar, VariableList}
@@ -13,6 +13,10 @@ import org.apache.spark.sql.types.{StringType, StructType}
 import scala.util.Try
 
 case class MemsqlPartitionInfo(ordinal: Int, name: String, hostport: String)
+case class MemsqlExternalPartitionInfo(ordinal: Int,
+                                       name: String,
+                                       externalHostPort: String,
+                                       hostport: String)
 
 object JdbcHelpers extends LazyLogging {
   final val MEMSQL_CONNECT_TIMEOUT = "10000" // 10 seconds in ms
@@ -137,11 +141,64 @@ object JdbcHelpers extends LazyLogging {
     }
   }
 
-  def externalHostPorts(conf: MemsqlOptions, database: String): List[MemsqlPartitionInfo] = {
+  case class MemsqlVersion(major: Int, minor: Int, patch: Int) {
+
+    implicit val ordering: Ordering[MemsqlVersion] =
+      Ordering.by(v => (v.major, v.minor, v.patch))
+
+    import Ordering.Implicits.infixOrderingOps
+
+    def atLeast(version: MemsqlVersion): Boolean = {
+      this >= version
+    }
+
+    def atLeast(version: String): Boolean = {
+      atLeast(MemsqlVersion(version))
+    }
+
+    override def toString: String = s"${this.major}.${this.minor}.${this.patch}"
+  }
+
+  object MemsqlVersion {
+
+    def apply(version: String): MemsqlVersion = {
+      val versionParts = version.split("\\.")
+      if (versionParts.size != 3)
+        throw new IllegalArgumentException(
+          "Memsql version should contain three parts (major, minor, patch)")
+      new MemsqlVersion(Integer.parseInt(versionParts(0)),
+                        Integer.parseInt(versionParts(1)),
+                        Integer.parseInt(versionParts(2)))
+    }
+  }
+
+  def getMemsqlVersion(conf: MemsqlOptions): String = {
+    val jdbcOpts = JdbcHelpers.getDDLJDBCOptions(conf)
+    val conn     = JdbcUtils.createConnectionFactory(jdbcOpts)()
+    val sql      = "select @@memsql_version"
+    log.trace(s"Executing SQL:\n$sql")
+    val resultSet = conn.withStatement(stmt => {
+      try {
+        stmt.executeQuery(sql)
+      } catch {
+        case _: SQLException => throw new IllegalArgumentException("Can't get Memsql version")
+      } finally {
+        stmt.close()
+        conn.close()
+      }
+    })
+    if (resultSet.next()) {
+      resultSet.getString("@@memsql_version")
+    } else throw new IllegalArgumentException("Can't get Memsql version")
+  }
+
+  def externalHostPorts(conf: MemsqlOptions): Map[String, String] = {
     val conn = JdbcUtils.createConnectionFactory(getDDLJDBCOptions(conf))()
     try {
       val statement = conn.prepareStatement(s"""
-        SELECT EXTERNAL_HOST,         
+        SELECT IP_ADDR,    
+        PORT,
+        EXTERNAL_HOST,         
         EXTERNAL_PORT
         FROM INFORMATION_SCHEMA.MV_NODES 
         WHERE TYPE = "LEAF";
@@ -149,17 +206,17 @@ object JdbcHelpers extends LazyLogging {
       try {
         val rs = statement.executeQuery()
         try {
-          var out = List.empty[MemsqlPartitionInfo]
-          var idx = 0
+          var out = Map.empty[String, String]
           while (rs.next) {
-            val externalHost = rs.getString(1)
-            val externalPort = rs.getInt(2)
+            val host         = rs.getString(1)
+            val port         = rs.getInt(2)
+            val externalHost = rs.getString(3)
+            val externalPort = rs.getInt(4)
             if (externalHost != null) {
-              out = MemsqlPartitionInfo(idx, s"${database}_${idx}", s"$externalHost:$externalPort") :: out
-              idx += 1
+              out = out + (s"$host:$port" -> s"$externalHost:$externalPort")
             }
           }
-          out.reverse
+          out
         } finally {
           rs.close()
         }

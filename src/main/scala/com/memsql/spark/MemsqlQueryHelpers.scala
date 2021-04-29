@@ -1,5 +1,6 @@
 package com.memsql.spark
 
+import com.memsql.spark.JdbcHelpers.MemsqlVersion
 import com.memsql.spark.SQLGen.VariableList
 import org.apache.spark.Partition
 import org.apache.spark.sql.execution.datasources.jdbc.JDBCOptions
@@ -37,11 +38,29 @@ object MemsqlQueryHelpers extends LazyLogging {
     // currently we require the database name to be provided in order to do partition pushdown
     // this is because we need to replace the database name in the generated query from MemSQL explain
     val partitions = if (options.enableParallelRead && options.database.isDefined) {
-      val explainJSON = JdbcHelpers.explainJSONQuery(options, query, variables).parseJson
+      val minimalExternalHostVersion = "7.1.0"
+      val explainJSON                = JdbcHelpers.explainJSONQuery(options, query, variables).parseJson
+      val partitions                 = JdbcHelpers.partitionHostPorts(options, options.database.head)
       val partitionHostPorts = if (options.useExternalHost) {
-        JdbcHelpers.externalHostPorts(options, options.database.head)
+        val memsqlVersion = MemsqlVersion(JdbcHelpers.getMemsqlVersion(options))
+        if (memsqlVersion.atLeast(minimalExternalHostVersion)) {
+          val externalHostMap = JdbcHelpers.externalHostPorts(options)
+          partitions.map(p => {
+            val externalHost = externalHostMap.get(p.hostport)
+            if (externalHost.isDefined) {
+              MemsqlPartitionInfo(p.ordinal, p.name, externalHost.get)
+            } else {
+              throw new IllegalArgumentException(
+                s"No external host/port provided for the host ${p.hostport}")
+            }
+          })
+        } else {
+          log.warn(
+            s"To use `External host` feature, your SingleStore version should be $minimalExternalHostVersion or above, your current version is $memsqlVersion")
+          partitions
+        }
       } else {
-        JdbcHelpers.partitionHostPorts(options, options.database.head)
+        partitions
       }
       try {
         partitionsFromExplainJSON(options, options.database.head, partitionHostPorts, explainJSON)
