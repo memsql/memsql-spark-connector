@@ -128,13 +128,13 @@ class LoadDataWriterFactory(table: TableIdentifier, conf: SinglestoreOptions)
         .filter(s => !s.isEmpty)
         .mkString(" ")
 
-    val conn = JdbcUtils.createConnectionFactory(
+    val conn = SinglestoreConnectionFactory.getConnection(
       if (isReferenceTable) {
         JdbcHelpers.getDDLJDBCOptions(conf)
       } else {
         JdbcHelpers.getDMLJDBCOptions(conf)
       }
-    )()
+    )
 
     val writer = Future[Long] {
       try {

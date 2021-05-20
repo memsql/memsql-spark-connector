@@ -24,7 +24,7 @@ class LoadbalanceTest extends IntegrationSuiteBase {
           "dbtable"  -> "testdb",
           "user"     -> "root",
           "password" -> masterPassword))
-    val conn = JdbcUtils.createConnectionFactory(opts)()
+    val conn = SinglestoreConnectionFactory.getConnection(opts)
     try {
       // we only use write queries since read queries are always increasing due to internal status checks
       val rows =
