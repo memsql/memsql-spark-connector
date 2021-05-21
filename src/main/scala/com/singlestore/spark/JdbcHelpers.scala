@@ -79,7 +79,7 @@ object JdbcHelpers extends LazyLogging {
   }
 
   def loadSchema(conf: SinglestoreOptions, query: String, variables: VariableList): StructType = {
-    val conn = JdbcUtils.createConnectionFactory(getDDLJDBCOptions(conf))()
+    val conn = SinglestoreConnectionFactory.getConnection(getDDLJDBCOptions(conf))
     try {
       val statement =
         conn.prepareStatement(SinglestoreDialect.getSchemaQuery(s"($query) AS q"))
@@ -100,7 +100,7 @@ object JdbcHelpers extends LazyLogging {
   }
 
   def explainQuery(conf: SinglestoreOptions, query: String, variables: VariableList): String = {
-    val conn = JdbcUtils.createConnectionFactory(getDDLJDBCOptions(conf))()
+    val conn = SinglestoreConnectionFactory.getConnection(getDDLJDBCOptions(conf))
     try {
       val statement = conn.prepareStatement(s"EXPLAIN $query")
       try {
@@ -126,7 +126,7 @@ object JdbcHelpers extends LazyLogging {
   // explainJSONQuery runs `EXPLAIN JSON` on the query and returns the String
   // representing this queries plan as JSON.
   def explainJSONQuery(conf: SinglestoreOptions, query: String, variables: VariableList): String = {
-    val conn = JdbcUtils.createConnectionFactory(getDDLJDBCOptions(conf))()
+    val conn = SinglestoreConnectionFactory.getConnection(getDDLJDBCOptions(conf))
     try {
       val statement = conn.prepareStatement(s"EXPLAIN JSON ${query}")
       try {
@@ -153,7 +153,7 @@ object JdbcHelpers extends LazyLogging {
   // partitions in the specified database
   def partitionHostPorts(conf: SinglestoreOptions,
                          database: String): List[SinglestorePartitionInfo] = {
-    val conn = JdbcUtils.createConnectionFactory(getDDLJDBCOptions(conf))()
+    val conn = SinglestoreConnectionFactory.getConnection(getDDLJDBCOptions(conf))
     try {
       val statement = conn.prepareStatement(s"""
         SELECT HOST, PORT
@@ -191,7 +191,7 @@ object JdbcHelpers extends LazyLogging {
     * @return Map `host:port` -> `externalHost:externalPort`
     */
   def externalHostPorts(conf: SinglestoreOptions): Map[String, String] = {
-    val conn = JdbcUtils.createConnectionFactory(getDDLJDBCOptions(conf))()
+    val conn = SinglestoreConnectionFactory.getConnection(getDDLJDBCOptions(conf))
     try {
       val statement = conn.prepareStatement(s"""
         SELECT IP_ADDR,    
@@ -316,7 +316,7 @@ object JdbcHelpers extends LazyLogging {
 
   def getSinglestoreVersion(conf: SinglestoreOptions): String = {
     val jdbcOpts = JdbcHelpers.getDDLJDBCOptions(conf)
-    val conn     = JdbcUtils.createConnectionFactory(jdbcOpts)()
+    val conn     = SinglestoreConnectionFactory.getConnection(jdbcOpts)
     val sql      = "select @@memsql_version"
     log.trace(s"Executing SQL:\n$sql")
     val resultSet = conn.withStatement(stmt => {
@@ -357,7 +357,7 @@ object JdbcHelpers extends LazyLogging {
 
   def isReferenceTable(conf: SinglestoreOptions, table: TableIdentifier): Boolean = {
     val jdbcOpts = JdbcHelpers.getDDLJDBCOptions(conf)
-    val conn     = JdbcUtils.createConnectionFactory(jdbcOpts)()
+    val conn     = SinglestoreConnectionFactory.getConnection(jdbcOpts)
     // Assume that either table.database is set or conf.database is set
     val databaseName =
       table.database
@@ -389,7 +389,7 @@ object JdbcHelpers extends LazyLogging {
                            mode: SaveMode,
                            schema: StructType): Unit = {
     val jdbcOpts = JdbcHelpers.getDDLJDBCOptions(conf)
-    val conn     = JdbcUtils.createConnectionFactory(jdbcOpts)()
+    val conn     = SinglestoreConnectionFactory.getConnection(jdbcOpts)
     try {
       if (JdbcHelpers.tableExists(conn, table)) {
         mode match {

@@ -46,7 +46,7 @@ trait IntegrationSuiteBase
     // override global JVM timezone to GMT
     TimeZone.setDefault(TimeZone.getTimeZone("GMT"))
 
-    val conn = JdbcUtils.createConnectionFactory(jdbcOptsDefault)()
+    val conn = SinglestoreConnectionFactory.getConnection(jdbcOptsDefault)
     try {
       // make singlestore use less memory
       executeQuery(conn, "set global default_partitions_per_leaf = 2")

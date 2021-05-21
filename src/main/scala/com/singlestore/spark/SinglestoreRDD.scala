@@ -51,7 +51,7 @@ case class SinglestoreRDD(query: String,
       }
     }
 
-    conn = JdbcUtils.createConnectionFactory(partition.connectionInfo)()
+    conn = SinglestoreConnectionFactory.getConnection(partition.connectionInfo)
     stmt = conn.prepareStatement(partition.query)
     JdbcHelpers.fillStatement(stmt, partition.variables)
     rs = stmt.executeQuery()

@@ -170,7 +170,7 @@ class ExternalHostTest
         10
       )
 
-      val conn         = JdbcUtils.createConnectionFactory(getDDLJDBCOptions(conf))()
+      val conn         = SinglestoreConnectionFactory.getConnection(getDDLJDBCOptions(conf))
       val statement    = conn.prepareStatement(s"""
         SELECT IP_ADDR,    
         PORT,
