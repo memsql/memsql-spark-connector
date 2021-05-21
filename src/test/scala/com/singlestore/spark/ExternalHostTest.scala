@@ -191,7 +191,7 @@ class ExternalHostTest
 
       withObjectMocked[JdbcUtils.type] {
 
-        when(SinglestoreConnectionFactory.getConnection(any[JDBCOptions])).thenReturn(spyConn)
+        when(JdbcUtils.createConnectionFactory(any[JDBCOptions])).thenReturn(() => spyConn)
         val externalHostPorts = JdbcHelpers.externalHostPorts(conf)
         val expectedResult = Map(
           "172.17.0.2:3307" -> "172.17.0.10:3310"
