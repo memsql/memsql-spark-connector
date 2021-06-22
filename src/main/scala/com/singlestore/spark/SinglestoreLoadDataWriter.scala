@@ -14,10 +14,10 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.EncoderFactory
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.execution.datasources.jdbc.JdbcUtils
 import org.apache.spark.sql.sources.v2.writer.{DataWriter, WriterCommitMessage}
 import org.apache.spark.sql.types.{BinaryType, StructType}
 import org.apache.spark.sql.{Row, SaveMode}
+import org.mariadb.jdbc.MariaDbStatement
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
@@ -128,13 +128,12 @@ class LoadDataWriterFactory(table: TableIdentifier, conf: SinglestoreOptions)
         .filter(s => !s.isEmpty)
         .mkString(" ")
 
-    val conn = SinglestoreConnectionFactory.getConnection(
-      if (isReferenceTable) {
-        JdbcHelpers.getDDLJDBCOptions(conf)
-      } else {
-        JdbcHelpers.getDMLJDBCOptions(conf)
-      }
-    )
+    val options = if (isReferenceTable) {
+      JdbcHelpers.getDDLJDBCOptions(conf)
+    } else {
+      JdbcHelpers.getDMLJDBCOptions(conf)
+    }
+    val conn = SinglestoreConnectionFactory.getConnection(options)
 
     val writer = Future[Long] {
       try {

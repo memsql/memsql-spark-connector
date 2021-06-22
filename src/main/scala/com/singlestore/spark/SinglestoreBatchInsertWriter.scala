@@ -35,13 +35,12 @@ class BatchInsertWriterFactory(table: TableIdentifier, conf: SinglestoreOptions)
       List.fill(rows)(rowTemplate).mkString(",")
     val fullBatchQuery = queryPrefix + valueTemplate(conf.insertBatchSize) + querySuffix
 
-    val conn = SinglestoreConnectionFactory.getConnection(
-      if (isReferenceTable) {
-        JdbcHelpers.getDDLJDBCOptions(conf)
-      } else {
-        JdbcHelpers.getDMLJDBCOptions(conf)
-      }
-    )
+    val options = if (isReferenceTable) {
+      JdbcHelpers.getDDLJDBCOptions(conf)
+    } else {
+      JdbcHelpers.getDMLJDBCOptions(conf)
+    }
+    val conn = SinglestoreConnectionFactory.getConnection(options)
     conn.setAutoCommit(false)
 
     def writeBatch(buff: ListBuffer[Row]): Long = {
